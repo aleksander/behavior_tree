@@ -1,0 +1,20 @@
+
+lumberjack >
+    restore-stamina
+    cut-down-nearest-tree
+
+
+restore-stamina .
+    stamina < max
+    drink
+
+drink
+    select-
+
+
+cut-down-nearest-tree
+    take-axe-in-a-hand
+    tree = select-nearest-tree
+    goto(tree)
+    chop(tree)
+
