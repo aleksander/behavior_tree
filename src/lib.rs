@@ -40,23 +40,24 @@ mod selector {
 
 mod sequence {
     use crate::{Node, Status};
+    use std::ops::{DerefMut, Deref};
 
-    pub struct Sequence<'a, const N: usize> {
-        tasks: [&'a mut dyn Node; N],
+    pub struct Sequence<T: Deref, const N: usize> where T::Target: Node {
+        tasks: [dyn T; N],
     }
 
-    impl<'a, const N: usize> Sequence<'a, N> {
-        pub fn new(tasks: [&'a mut dyn Node; N]) -> Sequence<'a, N> {
+    impl<T: Deref, const N: usize> Sequence<T, N> {
+        pub fn new(tasks: [T; N]) -> Sequence<T, N> {
             Sequence {
                 tasks
             }
         }
     }
 
-    impl<'a, const N: usize> Node for Sequence<'a, N> {
+    impl<'a, T: DerefMut, const N: usize> Node for Sequence<T, N> where T::Target: Node {
         fn tick(&mut self) -> Status {
             for task in self.tasks.iter_mut() {
-                match task.tick() {
+                match task.deref_mut().tick() {
                     Status::Success => {}
                     Status::Failure => return Status::Failure,
                     Status::Running => return Status::Running,
@@ -136,6 +137,21 @@ mod tests {
         let mut s1 = Fail::new(1);
         let mut s2 = Fail::new(2);
         let mut root = Sequence::new([&mut s1, &mut s2]);
+        let status = root.tick();
+        println!("sequence {:?}", status);
+    }
+
+    #[test]
+    fn dynamic () {
+        let new_root = || {
+            let mut s1 = Box::new(Fail::new(1));
+            let mut s2 = Box::new(Fail::new(2));
+            let mut root = Sequence::new([s1, s2]);
+            root
+        };
+        let mut root = new_root();
+        let mut s3 = Fail::new(3);
+        let mut root2 = Sequence::new([&mut root, &mut s3]);
         let status = root.tick();
         println!("sequence {:?}", status);
     }
