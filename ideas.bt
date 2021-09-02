@@ -21,7 +21,8 @@ wait-login-screen
 
 choose-a-character {
     send msg::focus
-    send msg::play("name") }
+    send msg::play("name")
+}
 
 wait-gameui
     ...
