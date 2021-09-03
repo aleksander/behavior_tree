@@ -9,7 +9,7 @@ pub trait Node {
     fn tick (&mut self) -> Status;
 }
 
-mod referenced {
+pub mod referenced {
     mod selector {
         use crate::{Node, Status};
 
@@ -72,7 +72,7 @@ mod referenced {
     pub use sequence::Sequence;
 }
 
-mod boxed {
+pub mod boxed {
     mod selector {
         use crate::{Node, Status};
 
@@ -133,6 +133,30 @@ mod boxed {
 
     pub use selector::Selector;
     pub use sequence::Sequence;
+}
+
+pub struct AlwaysSuccess;
+
+impl Node for AlwaysSuccess {
+    fn tick(&mut self) -> Status {
+        Status::Success
+    }
+}
+
+pub struct AlwaysFailure;
+
+impl Node for AlwaysFailure {
+    fn tick(&mut self) -> Status {
+        Status::Failure
+    }
+}
+
+pub struct AlwaysRunning;
+
+impl Node for AlwaysRunning {
+    fn tick(&mut self) -> Status {
+        Status::Running
+    }
 }
 
 #[cfg(test)]

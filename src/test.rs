@@ -114,8 +114,8 @@ mod boxed {
 
     #[test]
     fn selector_success() {
-        let mut s1 = Success::new(1);
-        let mut s2 = Success::new(2);
+        let s1 = Success::new(1);
+        let s2 = Success::new(2);
         let mut root = Selector::new([Box::new(s1), Box::new(s2)]);
         let status = root.tick();
         println!("selector {:?}", status);
@@ -123,8 +123,8 @@ mod boxed {
 
     #[test]
     fn sequence_success() {
-        let mut s1 = Success::new(1);
-        let mut s2 = Success::new(2);
+        let s1 = Success::new(1);
+        let s2 = Success::new(2);
         let mut root = Sequence::new([Box::new(s1), Box::new(s2)]);
         let status = root.tick();
         println!("sequence {:?}", status);
@@ -132,8 +132,8 @@ mod boxed {
 
     #[test]
     fn selector_fail() {
-        let mut s1 = Fail::new(1);
-        let mut s2 = Fail::new(2);
+        let s1 = Fail::new(1);
+        let s2 = Fail::new(2);
         let mut root = Selector::new([Box::new(s1), Box::new(s2)]);
         let status = root.tick();
         println!("selector {:?}", status);
@@ -141,8 +141,8 @@ mod boxed {
 
     #[test]
     fn sequence_fail() {
-        let mut s1 = Fail::new(1);
-        let mut s2 = Fail::new(2);
+        let s1 = Fail::new(1);
+        let s2 = Fail::new(2);
         let mut root = Sequence::new([Box::new(s1), Box::new(s2)]);
         let status = root.tick();
         println!("sequence {:?}", status);
@@ -151,13 +151,13 @@ mod boxed {
     #[test]
     fn composite() {
         let root = || {
-            let mut s1 = Success::new(1);
-            let mut s2 = Fail::new(2);
-            let mut root = Sequence::new([Box::new(s1), Box::new(s2)]);
+            let s1 = Success::new(1);
+            let s2 = Fail::new(2);
+            let root = Sequence::new([Box::new(s1), Box::new(s2)]);
             root
         };
         let root = root();
-        let mut s3 = Fail::new(3);
+        let s3 = Fail::new(3);
         let mut root2 = Sequence::new([Box::new(root), Box::new(s3)]);
         let status = root2.tick();
         println!("root2 {:?}", status);
