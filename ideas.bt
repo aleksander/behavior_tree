@@ -28,13 +28,17 @@ wait-gameui
     ...
 
 fell-trees
-    avoid-predators
-    &
-    avoid-players
+    avoid-hostiles
     &
     restore-stamina
     &
     cut-down-nearest-tree
+
+avoid-hostiles
+    # ??? should we avoid nearest of predators AND players simultaneously?
+    avoid-predators
+    &
+    avoid-players
 
 avoid-predators
     cant-see-any-predators | avoid-nearest-predator
