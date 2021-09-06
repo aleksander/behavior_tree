@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 #[derive(Debug)]
 pub enum Status {
     Success,
@@ -156,6 +158,38 @@ pub struct AlwaysRunning;
 impl Node for AlwaysRunning {
     fn tick(&mut self) -> Status {
         Status::Running
+    }
+}
+
+pub struct Wait {
+    duration: Duration,
+    start: Option<Instant>,
+}
+
+impl Wait {
+    pub fn new (duration: Duration) -> Wait {
+        Wait {
+            duration,
+            start: None,
+        }
+    }
+}
+
+impl Node for Wait {
+    fn tick(&mut self) -> Status {
+        match self.start {
+            None => {
+                self.start = Some(Instant::now());
+                Status::Running
+            }
+            Some(ref start) => {
+                if start.elapsed() >= self.duration {
+                    Status::Success
+                } else {
+                    Status::Running
+                }
+            }
+        }
     }
 }
 
