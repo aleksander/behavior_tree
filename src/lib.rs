@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Status {
     Success,
     Failure,
@@ -9,6 +9,8 @@ pub enum Status {
 
 pub trait Node {
     fn tick (&mut self) -> Status;
+    fn name (&self) -> String { "none".into() }
+    fn reset (&mut self) {}
 }
 
 pub mod referenced {
@@ -16,14 +18,13 @@ pub mod referenced {
         use crate::{Node, Status};
 
         pub struct Selector<'a, const N: usize> {
+            name: String,
             tasks: [&'a mut dyn Node; N],
         }
 
         impl<'a, const N: usize> Selector<'a, N> {
-            pub fn new(tasks: [&'a mut dyn Node; N]) -> Selector<'a, N> {
-                Selector {
-                    tasks
-                }
+            pub fn new(name: String, tasks: [&'a mut dyn Node; N]) -> Selector<'a, N> {
+                Selector { name, tasks }
             }
         }
 
@@ -38,6 +39,9 @@ pub mod referenced {
                 }
                 Status::Failure
             }
+            fn name (&self) -> String {
+                self.name.clone()
+            }
         }
     }
 
@@ -45,14 +49,13 @@ pub mod referenced {
         use crate::{Node, Status};
 
         pub struct Sequence<'a, const N: usize> {
+            name: String,
             tasks: [&'a mut dyn Node; N],
         }
 
         impl<'a, const N: usize> Sequence<'a, N> {
-            pub fn new(tasks: [&'a mut dyn Node; N]) -> Sequence<'a, N> {
-                Sequence {
-                    tasks
-                }
+            pub fn new(name: String, tasks: [&'a mut dyn Node; N]) -> Sequence<'a, N> {
+                Sequence { name, tasks }
             }
         }
 
@@ -67,6 +70,9 @@ pub mod referenced {
                 }
                 Status::Success
             }
+            fn name (&self) -> String {
+                self.name.clone()
+            }
         }
     }
 
@@ -79,14 +85,13 @@ pub mod boxed {
         use crate::{Node, Status};
 
         pub struct Selector<const N: usize> {
+            name: String,
             tasks: [Box<dyn Node>; N],
         }
 
         impl<const N: usize> Selector<N> {
-            pub fn new(tasks: [Box<dyn Node>; N]) -> Selector<N> {
-                Selector {
-                    tasks
-                }
+            pub fn new(name: String, tasks: [Box<dyn Node>; N]) -> Selector<N> {
+                Selector { name, tasks }
             }
         }
 
@@ -101,6 +106,9 @@ pub mod boxed {
                 }
                 Status::Failure
             }
+            fn name (&self) -> String {
+                self.name.clone()
+            }
         }
     }
 
@@ -108,14 +116,13 @@ pub mod boxed {
         use crate::{Node, Status};
 
         pub struct Sequence<const N: usize> {
+            name: String,
             tasks: [Box<dyn Node>; N],
         }
 
         impl<const N: usize> Sequence<N> {
-            pub fn new(tasks: [Box<dyn Node>; N]) -> Sequence<N> {
-                Sequence {
-                    tasks
-                }
+            pub fn new(name: String, tasks: [Box<dyn Node>; N]) -> Sequence<N> {
+                Sequence { name, tasks }
             }
         }
 
@@ -129,6 +136,9 @@ pub mod boxed {
                     }
                 }
                 Status::Success
+            }
+            fn name (&self) -> String {
+                self.name.clone()
             }
         }
     }
@@ -187,6 +197,34 @@ impl Node for Wait {
                     Status::Success
                 } else {
                     Status::Running
+                }
+            }
+        }
+    }
+}
+
+mod decorators {
+    use crate::{Node, Status};
+
+    struct Once {
+        done: Option<Status>,
+        node: Box<dyn Node>
+    }
+
+    impl Once {
+        fn new (node: Box<dyn Node>) -> Once {
+            Once { done: None, node }
+        }
+    }
+
+    impl Node for Once {
+        fn tick(&mut self) -> Status {
+            if let Some(status) = self.done {
+                status
+            } else {
+                match self.node.tick() {
+                    Status::Running => Status::Running,
+                    status => { self.done = Some(status); status }
                 }
             }
         }
