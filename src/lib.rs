@@ -8,7 +8,7 @@ pub enum Status {
 }
 
 pub trait Node {
-    fn tick (&mut self) -> Status;
+    fn tick (&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status;
     fn name (&self) -> String { "none".into() }
     fn reset (&mut self) {}
 }
@@ -29,9 +29,9 @@ pub mod referenced {
         }
 
         impl<'a, const N: usize> Node for Selector<'a, N> {
-            fn tick(&mut self) -> Status {
+            fn tick(&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status {
                 for task in self.tasks.iter_mut() {
-                    match task.tick() {
+                    match task.tick(depth, debug) {
                         Status::Success => return Status::Success,
                         Status::Failure => {}
                         Status::Running => return Status::Running,
@@ -60,9 +60,9 @@ pub mod referenced {
         }
 
         impl<'a, const N: usize> Node for Sequence<'a, N> {
-            fn tick(&mut self) -> Status {
+            fn tick(&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status {
                 for task in self.tasks.iter_mut() {
-                    match task.tick() {
+                    match task.tick(depth, debug) {
                         Status::Success => {}
                         Status::Failure => return Status::Failure,
                         Status::Running => return Status::Running,
@@ -96,9 +96,12 @@ pub mod boxed {
         }
 
         impl<const N: usize> Node for Selector<N> {
-            fn tick(&mut self) -> Status {
+            fn tick(&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status {
+                if let Some(ref mut debug) = debug {
+                    debug.push((depth, self.name()));
+                }
                 for task in self.tasks.iter_mut() {
-                    match task.tick() {
+                    match task.tick(depth + 1, debug) {
                         Status::Success => return Status::Success,
                         Status::Failure => {}
                         Status::Running => return Status::Running,
@@ -127,9 +130,12 @@ pub mod boxed {
         }
 
         impl<const N: usize> Node for Sequence<N> {
-            fn tick(&mut self) -> Status {
+            fn tick(&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status {
+                if let Some(ref mut debug) = debug {
+                    debug.push((depth, self.name()));
+                }
                 for task in self.tasks.iter_mut() {
-                    match task.tick() {
+                    match task.tick(depth + 1, debug) {
                         Status::Success => {}
                         Status::Failure => return Status::Failure,
                         Status::Running => return Status::Running,
@@ -150,24 +156,42 @@ pub mod boxed {
 pub struct AlwaysSuccess;
 
 impl Node for AlwaysSuccess {
-    fn tick(&mut self) -> Status {
+    fn tick(&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status {
+        if let Some(ref mut debug) = debug {
+            debug.push((depth, self.name()));
+        }
         Status::Success
+    }
+    fn name(&self) -> String {
+        "always-success".into()
     }
 }
 
 pub struct AlwaysFailure;
 
 impl Node for AlwaysFailure {
-    fn tick(&mut self) -> Status {
+    fn tick(&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status {
+        if let Some(ref mut debug) = debug {
+            debug.push((depth, self.name()));
+        }
         Status::Failure
+    }
+    fn name(&self) -> String {
+        "always-failure".into()
     }
 }
 
 pub struct AlwaysRunning;
 
 impl Node for AlwaysRunning {
-    fn tick(&mut self) -> Status {
+    fn tick(&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status {
+        if let Some(ref mut debug) = debug {
+            debug.push((depth, self.name()));
+        }
         Status::Running
+    }
+    fn name(&self) -> String {
+        "always-running".into()
     }
 }
 
@@ -186,7 +210,10 @@ impl Wait {
 }
 
 impl Node for Wait {
-    fn tick(&mut self) -> Status {
+    fn tick(&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status {
+        if let Some(ref mut debug) = debug {
+            debug.push((depth, self.name()));
+        }
         match self.start {
             None => {
                 self.start = Some(Instant::now());
@@ -201,35 +228,56 @@ impl Node for Wait {
             }
         }
     }
+    fn name (&self) -> String {
+        let duration = self.duration.as_millis();
+        if let Some(start) = self.start {
+            let elapsed = start.elapsed().as_millis();
+            format!("wait {}", if duration > elapsed { duration - elapsed } else { 0 })
+        } else {
+            format!("wait {}", duration)
+        }
+    }
 }
 
 mod decorators {
     use crate::{Node, Status};
 
-    struct Once {
+    pub struct Once {
         done: Option<Status>,
         node: Box<dyn Node>
     }
 
     impl Once {
-        fn new (node: Box<dyn Node>) -> Once {
+        pub fn new (node: Box<dyn Node>) -> Once {
             Once { done: None, node }
         }
     }
 
     impl Node for Once {
-        fn tick(&mut self) -> Status {
+        fn tick(&mut self, depth: usize, debug: &mut Option<Vec<(usize, String)>>) -> Status {
+            if let Some(ref mut debug) = debug {
+                debug.push((depth, self.name()));
+            }
             if let Some(status) = self.done {
                 status
             } else {
-                match self.node.tick() {
+                match self.node.tick(depth + 1, debug) {
                     Status::Running => Status::Running,
                     status => { self.done = Some(status); status }
                 }
             }
         }
+        fn name(&self) -> String {
+            if let Some(status) = self.done {
+                format!("once cached {:?}", status)
+            } else {
+                "once".into()
+            }
+        }
     }
 }
+
+pub use decorators::Once;
 
 #[cfg(test)]
 mod test;
